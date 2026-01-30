@@ -12,6 +12,15 @@ import fs from 'fs';
 import { constants as zlibConstants } from 'zlib';
 import type { OutputBundle } from 'rollup';
 
+export default defineConfig({
+  assetsInclude: [],
+  build: {
+    rollupOptions: {
+      external: ['libreoffice-wasm']
+    }
+  }
+})
+
 const SUPPORTED_LANGUAGES = [
   'en',
   'de',
