@@ -12,15 +12,6 @@ import fs from 'fs';
 import { constants as zlibConstants } from 'zlib';
 import type { OutputBundle } from 'rollup';
 
-export default defineConfig({
-  assetsInclude: [],
-  build: {
-    rollupOptions: {
-      external: ['libreoffice-wasm']
-    }
-  }
-})
-
 const SUPPORTED_LANGUAGES = [
   'en',
   'de',
@@ -283,12 +274,14 @@ export default defineConfig(() => {
     console.log('[Vite] Using local WASM files only');
   }
 
-  const staticCopyTargets = [
-    {
-      src: 'node_modules/embedpdf-snippet/dist/pdfium.wasm',
-      dest: 'embedpdf',
-    },
-  ];
+  const staticCopyTargets = USE_CDN
+  ? []
+  : [
+      {
+        src: 'node_modules/embedpdf-snippet/dist/pdfium.wasm',
+        dest: 'embedpdf',
+      },
+    ];
 
   return {
     base: (process.env.BASE_URL || '/').replace(/\/?$/, '/'),
