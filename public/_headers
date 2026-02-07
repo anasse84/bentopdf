@@ -1,0 +1,5 @@
+/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/wasm
+/sw.js
+  Cache-Control: no-cache
