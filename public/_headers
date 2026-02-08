@@ -1,18 +1,24 @@
-# Configuration pour la sécurité WebAssembly (Obligatoire)
+# Configuration pour la sécurité WebAssembly (Indispensable pour le multithreading)
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
 
-# Optimisation du cache pour les fichiers lourds
+# Optimisation et Type MIME pour les fichiers WASM
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/wasm
 
+# Configuration spécifique pour les fichiers compressés sur R2/Pages
 /*.wasm.gz
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/wasm
   Content-Encoding: gzip
 
-# Pas de cache pour le Service Worker
+/*.data.gz
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip
+
+# Pas de cache pour le Service Worker pour permettre les mises à jour
 /sw.js
   Cache-Control: no-cache
