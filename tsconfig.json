@@ -1,33 +1,9 @@
-// {
-//   "compilerOptions": {
-//     "target": "ES2022",
-//     "useDefineForClassFields": true,
-//     "module": "ESNext",
-//     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-//     "types": ["vite/client"],
-//     "skipLibCheck": true,
-//     /* Bundler mode */
-//     "moduleResolution": "bundler",
-//     "allowImportingTsExtensions": true,
-//     "verbatimModuleSyntax": true,
-//     "moduleDetection": "force",
-//     "noEmit": true,
-//     /* Linting */
-//     "strict": true,
-//     "noUnusedLocals": true,
-//     "noUnusedParameters": true,
-//     "erasableSyntaxOnly": true,
-//     "noFallthroughCasesInSwitch": true,
-//     "noUncheckedSideEffectImports": true
-//   },
-//   "include": ["src"]
-// }
 {
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
-    "types": ["vite/client", "vitest/globals"], // Added vitest/globals
+    "types": ["vite/client", "vitest/globals"],
     /* Easier module handling for Vite */
     "moduleResolution": "bundler",
     "allowJs": true,
@@ -55,6 +31,6 @@
       "@/types": ["./src/js/types/index.ts"]
     }
   },
-  "include": ["src", "src/**/*.ts", "public/workers", "vite.config.ts"], // Updated to include all TS files
+  "include": ["src", "src/**/*.ts", "public/workers", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
