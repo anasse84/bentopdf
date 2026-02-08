@@ -4,7 +4,7 @@ var Module = typeof Module != "undefined" ? Module : {};
 // AJOUTEZ CECI :
 Module["locateFile"] = function(path, prefix) {
   if (path.endsWith(".data") || path.endsWith(".wasm") || path.endsWith(".gz")) {
-    return "https://pub-df039fa02fb14cb7bed8d829e1cf5cf3.r2.dev/" + path + ".gz";
+    return "https://r2-proxy.atlantistech-io.workers.dev/" + path + ".gz";
   }
   return prefix + path;
 };
