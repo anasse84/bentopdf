@@ -1,7 +1,7 @@
 "use strict";
 
 // --- AJOUT POUR R2 ---
-const R2_URL = "https://pub-df039fa02fb14cb7bed8d829e1cf5cf3.r2.dev/";
+const R2_URL = "https://r2-proxy.atlantistech-io.workers.dev/";
 var Module = {
   locateFile: function(path, prefix) {
     if (path.endsWith(".wasm") || path.endsWith(".data")) {
