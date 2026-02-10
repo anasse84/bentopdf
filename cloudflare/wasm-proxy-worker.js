@@ -2,10 +2,11 @@
  * BentoPDF WASM Proxy Worker
  *
  * This Cloudflare Worker proxies WASM module requests to bypass CORS restrictions.
- * It fetches WASM libraries (PyMuPDF, Ghostscript, CoherentPDF) from configured sources
+ * It fetches WASM libraries (LibreOffice, PyMuPDF, Ghostscript, CoherentPDF) from configured sources
  * and serves them with proper CORS headers.
  *
  * Endpoints:
+ * - /libreoffice/* - Proxies to LibreOffice WASM source (with .gz decompression for .wasm/.data files)
  * - /pymupdf/* - Proxies to PyMuPDF WASM source
  * - /gs/* - Proxies to Ghostscript WASM source
  * - /cpdf/* - Proxies to CoherentPDF WASM source
@@ -13,12 +14,13 @@
  * Deploy: cd cloudflare && npx wrangler deploy -c wasm-wrangler.toml
  *
  * Required Environment Variables (set in Cloudflare dashboard):
+ * - LIBREOFFICE_SOURCE: Base URL for LibreOffice WASM files (e.g., https://cdn.example.com/libreoffice)
  * - PYMUPDF_SOURCE: Base URL for PyMuPDF WASM files (e.g., https://cdn.example.com/pymupdf)
  * - GS_SOURCE: Base URL for Ghostscript WASM files (e.g., https://cdn.example.com/gs)
  * - CPDF_SOURCE: Base URL for CoherentPDF files (e.g., https://cdn.example.com/cpdf)
  */
 
-const ALLOWED_ORIGINS = ['https://www.bentopdf.com', 'https://bentopdf.com'];
+const ALLOWED_ORIGINS = ['https://www.bentopdf.com', 'https://bentopdf.com', 'https://bentopdf-32l.pages.dev'];
 
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 
@@ -40,6 +42,7 @@ const ALLOWED_EXTENSIONS = [
   '.asm.js',
   '.worker.js',
   '.html',
+  '.gz',
 ];
 
 function isAllowedOrigin(origin) {
@@ -224,6 +227,75 @@ async function proxyRequest(request, env, sourceBaseUrl, subpath, origin) {
   }
 }
 
+/**
+ * Special proxy for LibreOffice files
+ * For .wasm and .data requests: fetches .gz from CDN, decompresses, serves raw bytes
+ * For other files (.js): normal proxy
+ */
+async function proxyLibreOfficeFile(request, env, sourceBaseUrl, subpath, origin) {
+  if (!sourceBaseUrl) {
+    return new Response(
+      JSON.stringify({ error: 'Source not configured' }),
+      { status: 503, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const normalizedBase = sourceBaseUrl.endsWith('/') ? sourceBaseUrl.slice(0, -1) : sourceBaseUrl;
+  const normalizedPath = subpath.startsWith('/') ? subpath : `/${subpath}`;
+  
+  // For .wasm and .data files, fetch the .gz version and decompress
+  const needsDecompress = normalizedPath.endsWith('.wasm') || normalizedPath.endsWith('.data');
+  const targetUrl = needsDecompress 
+    ? `${normalizedBase}${normalizedPath}.gz`
+    : `${normalizedBase}${normalizedPath}`;
+
+  try {
+    const response = await fetch(targetUrl, {
+      headers: { 'User-Agent': 'BentoPDF-WASM-Proxy/1.0', Accept: '*/*' },
+    });
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch', status: response.status, targetUrl }),
+        { status: response.status, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let bodyData;
+    let contentType = 'application/octet-stream';
+
+    if (needsDecompress) {
+      // Decompress gzip data
+      const compressedData = await response.arrayBuffer();
+      const ds = new DecompressionStream('gzip');
+      const decompressedStream = new Blob([compressedData]).stream().pipeThrough(ds);
+      bodyData = await new Response(decompressedStream).arrayBuffer();
+      
+      if (normalizedPath.endsWith('.wasm')) {
+        contentType = 'application/wasm';
+      }
+    } else {
+      bodyData = await response.arrayBuffer();
+      contentType = getContentType(normalizedPath);
+    }
+
+    return new Response(bodyData, {
+      status: 200,
+      headers: {
+        ...corsHeaders(origin),
+        'Content-Type': contentType,
+        'Content-Length': bodyData.byteLength.toString(),
+        'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
+      },
+    });
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Proxy error', message: error.message }),
+      { status: 500, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -298,6 +370,12 @@ export default {
       );
     }
 
+    // === LibreOffice WASM (with decompression) ===
+    if (pathname.startsWith('/libreoffice/')) {
+      const subpath = pathname.replace('/libreoffice', '');
+      return proxyLibreOfficeFile(request, env, env.LIBREOFFICE_SOURCE, subpath, origin);
+    }
+
     if (pathname.startsWith('/pymupdf/')) {
       const subpath = pathname.replace('/pymupdf', '');
       return proxyRequest(request, env, env.PYMUPDF_SOURCE, subpath, origin);
@@ -317,13 +395,15 @@ export default {
       return new Response(
         JSON.stringify({
           service: 'BentoPDF WASM Proxy',
-          version: '1.0.0',
+          version: '2.0.0',
           endpoints: {
+            libreoffice: '/libreoffice/*',
             pymupdf: '/pymupdf/*',
             gs: '/gs/*',
             cpdf: '/cpdf/*',
           },
           configured: {
+            libreoffice: !!env.LIBREOFFICE_SOURCE,
             pymupdf: !!env.PYMUPDF_SOURCE,
             gs: !!env.GS_SOURCE,
             cpdf: !!env.CPDF_SOURCE,
@@ -342,7 +422,7 @@ export default {
     return new Response(
       JSON.stringify({
         error: 'Not Found',
-        message: 'Use /pymupdf/*, /gs/*, or /cpdf/* endpoints',
+        message: 'Use /libreoffice/*, /pymupdf/*, /gs/*, or /cpdf/* endpoints',
       }),
       {
         status: 404,
