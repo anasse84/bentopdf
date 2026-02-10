@@ -21,25 +21,37 @@
 
 Add these in Settings → Environment variables:
 
-| Variable | Value |
-|----------|-------|
-| `NODE_VERSION` | `18` |
-| `SIMPLE_MODE` | `false` (optional) |
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `NODE_VERSION` | `18` | Node.js version |
+| `VITE_USE_CDN` | `true` | Use CDN for WASM files (recommended for Cloudflare Pages) |
+| `VITE_LIBREOFFICE_CDN_URL` | (optional) | Custom LibreOffice WASM CDN URL. Defaults to `@bentopdf/libreoffice-wasm@2.3.1` on jsDelivr. |
+| `SIMPLE_MODE` | `false` | Optional: Enable simple mode |
 
-## Configuration File
+> **Note:** Setting `VITE_USE_CDN=true` enables the default CDN for LibreOffice WASM files, avoiding Cloudflare Pages' 25MB file size limit. The default CDN URL is defined in `src/js/utils/libreoffice-loader.ts`. You can override it with a custom URL using `VITE_LIBREOFFICE_CDN_URL` if needed. For other WASM packages (PyMuPDF, Ghostscript, CoherentPDF), configure them via the WASM Settings page in the application.
 
-Create `_headers` in your `public` folder:
+## Configuration Files
+
+### COOP/COEP Headers
+
+Create `_headers` in your `public` folder for required security headers:
 
 ```
-# Cache WASM files aggressively
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/wasm
 
-# Service worker
 /sw.js
   Cache-Control: no-cache
 ```
+
+> **Note:** These COOP/COEP headers are required for SharedArrayBuffer support, which LibreOffice WASM depends on.
+
+### SPA Routing
 
 Create `_redirects` for SPA routing:
 
@@ -64,14 +76,15 @@ Create `_redirects` for SPA routing:
 
 ## Troubleshooting
 
-### Large File Uploads
+### Large File Size Limits
 
-Cloudflare Pages supports files up to 25 MB. WASM modules should be fine, but if you hit limits, consider:
+Cloudflare Pages has a 25 MB file size limit. BentoPDF uses CDN delivery for large WASM files to avoid this limitation.
 
-```bash
-# Split large files during build
-npm run build
-```
+**LibreOffice WASM files that exceed 25MB:**
+- `soffice.data.gz` (~60MB)
+- `soffice.wasm.gz` (~30MB)
+
+**Solution:** Set `VITE_USE_CDN=true` in environment variables to use CDN delivery for all WASM files. This is automatically configured when you follow the environment variable setup above.
 
 ### Worker Size Limits
 
