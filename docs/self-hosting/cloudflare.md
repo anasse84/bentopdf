@@ -25,13 +25,10 @@ Add these in Settings → Environment variables:
 |----------|-------|-------------|
 | `NODE_VERSION` | `18` | Node.js version |
 | `VITE_USE_CDN` | `true` | Use CDN for WASM files (recommended for Cloudflare Pages) |
-| `VITE_LIBREOFFICE_CDN_URL` | `https://cdn.jsdelivr.net/npm/@bentopdf/libreoffice-wasm@2.3.1/assets/` | LibreOffice WASM CDN URL |
-| `VITE_WASM_PYMUPDF_URL` | `https://cdn.jsdelivr.net/npm/@bentopdf/pymupdf-wasm@0.11.14/` | PyMuPDF CDN URL |
-| `VITE_WASM_GS_URL` | `https://cdn.jsdelivr.net/npm/@bentopdf/gs-wasm/assets/` | Ghostscript CDN URL |
-| `VITE_WASM_CPDF_URL` | `https://cdn.jsdelivr.net/npm/coherentpdf/dist/` | CoherentPDF CDN URL |
+| `VITE_LIBREOFFICE_CDN_URL` | `https://cdn.jsdelivr.net/npm/@bentopdf/libreoffice-wasm@2.3.1/assets/` | LibreOffice WASM CDN URL (verify latest version) |
 | `SIMPLE_MODE` | `false` | Optional: Enable simple mode |
 
-> **Note:** Setting `VITE_USE_CDN=true` enables CDN for all WASM files, avoiding Cloudflare Pages' 25MB file size limit. The CDN URLs can be customized using the specific `VITE_*_URL` variables.
+> **Note:** Setting `VITE_USE_CDN=true` enables CDN for LibreOffice WASM files, avoiding Cloudflare Pages' 25MB file size limit. The version in the CDN URL should match the version defined in `src/js/utils/libreoffice-loader.ts`. For other WASM packages (PyMuPDF, Ghostscript, CoherentPDF), configure them via the WASM Settings page in the application.
 
 ## Configuration Files
 
