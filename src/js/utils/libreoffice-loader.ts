@@ -10,7 +10,8 @@ import { WorkerBrowserConverter } from '@matbee/libreoffice-converter/browser';
 const LIBREOFFICE_CDN_PATH = 'https://cdn.jsdelivr.net/npm/@bentopdf/libreoffice-wasm@2.3.1/assets/';
 const LIBREOFFICE_LOCAL_PATH = import.meta.env.BASE_URL + 'libreoffice-wasm/';
 
-const LIBREOFFICE_BASE_PATH = import.meta.env.VITE_LIBREOFFICE_CDN_URL || 
+// Determine CDN base path for large binary files (.gz)
+const LIBREOFFICE_CDN_BASE = import.meta.env.VITE_LIBREOFFICE_CDN_URL ||
     (import.meta.env.VITE_USE_CDN === 'true' ? LIBREOFFICE_CDN_PATH : LIBREOFFICE_LOCAL_PATH);
 
 export interface LoadProgress {
@@ -28,10 +29,14 @@ export class LibreOfficeConverter {
     private converter: WorkerBrowserConverter | null = null;
     private initialized = false;
     private initializing = false;
-    private basePath: string;
+    private cdnBasePath: string;    // For .gz files (CDN allowed)
+    private localBasePath: string;  // For .js worker files (must be same-origin)
 
     constructor(basePath?: string) {
-        this.basePath = basePath || LIBREOFFICE_BASE_PATH;
+        // CDN path for large binary files - can be overridden
+        this.cdnBasePath = basePath || LIBREOFFICE_CDN_BASE;
+        // Local path always used for JS worker files (browser security restriction)
+        this.localBasePath = LIBREOFFICE_LOCAL_PATH;
     }
 
     async initialize(onProgress?: ProgressCallback): Promise<void> {
@@ -52,11 +57,11 @@ export class LibreOfficeConverter {
             progressCallback?.({ phase: 'loading', percent: 0, message: 'Loading conversion engine...' });
 
             this.converter = new WorkerBrowserConverter({
-                sofficeJs: `${this.basePath}soffice.js`,
-                sofficeWasm: `${this.basePath}soffice.wasm.gz`,
-                sofficeData: `${this.basePath}soffice.data.gz`,
-                sofficeWorkerJs: `${this.basePath}soffice.worker.js`,
-                browserWorkerJs: `${this.basePath}browser.worker.global.js`,
+                sofficeJs: `${this.localBasePath}soffice.js`,                    // LOCAL - loaded as Worker
+                sofficeWasm: `${this.cdnBasePath}soffice.wasm.gz`,              // CDN OK - loaded via fetch()
+                sofficeData: `${this.cdnBasePath}soffice.data.gz`,              // CDN OK - loaded via fetch()
+                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js`,      // LOCAL - loaded as Worker
+                browserWorkerJs: `${this.localBasePath}browser.worker.global.js`, // LOCAL - loaded as Worker
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
