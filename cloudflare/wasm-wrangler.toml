@@ -24,6 +24,10 @@ compatibility_date = "2024-01-01"
 # =============================================================================
 # Set these as secrets in the Cloudflare dashboard or via wrangler:
 #
+# LIBREOFFICE_SOURCE: Base URL to LibreOffice WASM files
+#   Example: https://cdn.jsdelivr.net/npm/@bentopdf/libreoffice-wasm@2.3.1/assets
+#            https://your-bucket.r2.cloudflarestorage.com/libreoffice
+#
 # PYMUPDF_SOURCE: Base URL to PyMuPDF WASM files
 #   Example: https://cdn.jsdelivr.net/npm/@bentopdf/pymupdf-wasm/assets
 #            https://your-bucket.r2.cloudflarestorage.com/pymupdf
@@ -40,6 +44,7 @@ compatibility_date = "2024-01-01"
 # USAGE FROM BENTOPDF
 # =============================================================================
 # In BentoPDF's WASM Settings page, configure URLs like:
+#   LibreOffice: https://wasm.bentopdf.com/libreoffice/
 #   PyMuPDF: https://wasm.bentopdf.com/pymupdf/
 #   Ghostscript: https://wasm.bentopdf.com/gs/
 #   CoherentPDF: https://wasm.bentopdf.com/cpdf/
@@ -56,9 +61,11 @@ compatibility_date = "2024-01-01"
 # id = "<YOUR_KV_NAMESPACE_ID>"
 
 # Use the same KV namespace as the CORS proxy if you want shared rate limiting
-[[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
-id = "b88e030b308941118cd484e3fcb3ae49"
+# Note: The ID below is specific to the original bentopdf.com deployment
+# For your own deployment, create a new KV namespace and update the ID
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "b88e030b308941118cd484e3fcb3ae49"
 
 # =============================================================================
 # CUSTOM DOMAIN (Optional)
