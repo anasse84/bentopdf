@@ -268,7 +268,8 @@ async function networkFirstStrategy(request) {
  * Returns the local directory path for a given CDN package
  */
 function getLocalPathForCDNUrl(pathname) {
-  if (pathname.includes('/@matbee/libreoffice-converter')) {
+  if (pathname.includes('/@matbee/libreoffice-converter') || 
+      pathname.includes('/@bentopdf/libreoffice-wasm')) {
     return '/libreoffice-wasm/';
   }
   return null;
@@ -284,6 +285,7 @@ function shouldCache(pathname, isCDN = false) {
       pathname.includes('/@bentopdf/pymupdf-wasm') ||
       pathname.includes('/@bentopdf/gs-wasm') ||
       pathname.includes('/@matbee/libreoffice-converter') ||
+      pathname.includes('/@bentopdf/libreoffice-wasm') ||
       pathname.match(/\.(wasm|whl|zip|json|js|gz)$/)
     );
   }

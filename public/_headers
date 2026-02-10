@@ -1,8 +1,10 @@
-# Cache WASM files aggressively
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/wasm
 
-# Service worker
 /sw.js
   Cache-Control: no-cache

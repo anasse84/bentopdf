@@ -7,7 +7,11 @@
 
 import { WorkerBrowserConverter } from '@matbee/libreoffice-converter/browser';
 
+const LIBREOFFICE_CDN_PATH = 'https://cdn.jsdelivr.net/npm/@bentopdf/libreoffice-wasm@2.3.1/assets/';
 const LIBREOFFICE_LOCAL_PATH = import.meta.env.BASE_URL + 'libreoffice-wasm/';
+
+const LIBREOFFICE_BASE_PATH = import.meta.env.VITE_LIBREOFFICE_CDN_URL || 
+    (import.meta.env.VITE_USE_CDN === 'true' ? LIBREOFFICE_CDN_PATH : LIBREOFFICE_LOCAL_PATH);
 
 export interface LoadProgress {
     phase: 'loading' | 'initializing' | 'converting' | 'complete' | 'ready';
@@ -27,7 +31,7 @@ export class LibreOfficeConverter {
     private basePath: string;
 
     constructor(basePath?: string) {
-        this.basePath = basePath || LIBREOFFICE_LOCAL_PATH;
+        this.basePath = basePath || LIBREOFFICE_BASE_PATH;
     }
 
     async initialize(onProgress?: ProgressCallback): Promise<void> {
