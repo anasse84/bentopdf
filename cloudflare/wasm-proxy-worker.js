@@ -261,7 +261,7 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
 
     // Determine Content-Type based on the original file (before .gz)
     let contentType = 'application/octet-stream';
-    if (subpath.includes('soffice.wasm')) {
+    if (subpath.endsWith('.wasm.gz')) {
       contentType = 'application/wasm';
     }
 
@@ -363,9 +363,9 @@ export default {
     if (pathname.startsWith('/libreoffice/')) {
       const subpath = pathname.replace('/libreoffice', '');
 
-      // .wasm and .data files: fetch .gz from CDN, serve with Content-Encoding: gzip
+      // .wasm and .data files (not already .gz): fetch .gz from CDN, serve with Content-Encoding: gzip
       // Emscripten requests soffice.wasm but CDN only has soffice.wasm.gz
-      if (subpath.endsWith('.wasm') || subpath.endsWith('.data')) {
+      if ((subpath.endsWith('.wasm') || subpath.endsWith('.data')) && !subpath.endsWith('.gz')) {
         return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath + '.gz', origin);
       }
 
