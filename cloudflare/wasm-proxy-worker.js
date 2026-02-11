@@ -228,11 +228,12 @@ async function proxyRequest(request, env, sourceBaseUrl, subpath, origin) {
 }
 
 /**
- * Special proxy for LibreOffice files
- * For .wasm and .data requests: fetches .gz from CDN, decompresses, serves raw bytes
- * For other files (.js): normal proxy
+ * Special proxy for LibreOffice .gz files
+ * Fetches .gz files from CDN and serves them with Content-Encoding: gzip
+ * Uses encodeBody: 'manual' to prevent Cloudflare from stripping the header
+ * This allows the browser to decompress natively
  */
-async function proxyLibreOfficeFile(request, env, sourceBaseUrl, subpath, origin) {
+async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) {
   if (!sourceBaseUrl) {
     return new Response(
       JSON.stringify({ error: 'Source not configured' }),
@@ -242,12 +243,7 @@ async function proxyLibreOfficeFile(request, env, sourceBaseUrl, subpath, origin
 
   const normalizedBase = sourceBaseUrl.endsWith('/') ? sourceBaseUrl.slice(0, -1) : sourceBaseUrl;
   const normalizedPath = subpath.startsWith('/') ? subpath : `/${subpath}`;
-  
-  // For .wasm and .data files, fetch the .gz version and decompress
-  const needsDecompress = normalizedPath.endsWith('.wasm') || normalizedPath.endsWith('.data');
-  const targetUrl = needsDecompress 
-    ? `${normalizedBase}${normalizedPath}.gz`
-    : `${normalizedBase}${normalizedPath}`;
+  const targetUrl = `${normalizedBase}${normalizedPath}`;
 
   try {
     const response = await fetch(targetUrl, {
@@ -261,30 +257,23 @@ async function proxyLibreOfficeFile(request, env, sourceBaseUrl, subpath, origin
       );
     }
 
-    let bodyData;
-    let contentType = 'application/octet-stream';
+    const gzipBody = await response.arrayBuffer();
 
-    if (needsDecompress) {
-      // Decompress gzip data
-      const compressedData = await response.arrayBuffer();
-      const ds = new DecompressionStream('gzip');
-      const decompressedStream = new Blob([compressedData]).stream().pipeThrough(ds);
-      bodyData = await new Response(decompressedStream).arrayBuffer();
-      
-      if (normalizedPath.endsWith('.wasm')) {
-        contentType = 'application/wasm';
-      }
-    } else {
-      bodyData = await response.arrayBuffer();
-      contentType = getContentType(normalizedPath);
+    // Determine Content-Type based on the original file (before .gz)
+    let contentType = 'application/octet-stream';
+    if (subpath.endsWith('.wasm.gz')) {
+      contentType = 'application/wasm';
     }
 
-    return new Response(bodyData, {
+    // Use encodeBody: 'manual' to prevent Cloudflare from stripping Content-Encoding
+    return new Response(gzipBody, {
       status: 200,
+      encodeBody: 'manual',
       headers: {
         ...corsHeaders(origin),
         'Content-Type': contentType,
-        'Content-Length': bodyData.byteLength.toString(),
+        'Content-Encoding': 'gzip',
+        'Content-Length': gzipBody.byteLength.toString(),
         'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
       },
     });
@@ -370,10 +359,23 @@ export default {
       );
     }
 
-    // === LibreOffice WASM (with decompression) ===
+    // === LibreOffice WASM (with gzip header fix) ===
     if (pathname.startsWith('/libreoffice/')) {
       const subpath = pathname.replace('/libreoffice', '');
-      return proxyLibreOfficeFile(request, env, env.LIBREOFFICE_SOURCE, subpath, origin);
+
+      // .wasm and .data files (not already .gz): fetch .gz from CDN, serve with Content-Encoding: gzip
+      // Emscripten requests soffice.wasm but CDN only has soffice.wasm.gz
+      if ((subpath.endsWith('.wasm') || subpath.endsWith('.data')) && !subpath.endsWith('.gz')) {
+        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath + '.gz', origin);
+      }
+
+      // .gz files also handled (direct requests)
+      if (subpath.endsWith('.gz')) {
+        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath, origin);
+      }
+
+      // .js files: normal proxy
+      return proxyRequest(request, env, env.LIBREOFFICE_SOURCE, subpath, origin);
     }
 
     if (pathname.startsWith('/pymupdf/')) {

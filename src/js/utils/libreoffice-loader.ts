@@ -57,15 +57,15 @@ export class LibreOfficeConverter {
             progressCallback?.({ phase: 'loading', percent: 0, message: 'Loading conversion engine...' });
 
             // When using CDN/proxy (cdnBasePath != localBasePath), omit .gz extension
-            // The proxy worker will fetch .gz files from CDN and decompress them
+            // The proxy worker will fetch .gz files from CDN and serve with Content-Encoding: gzip for browser decompression
             // When using local files, keep .gz extension (nginx handles Content-Encoding)
             const useCDN = this.cdnBasePath !== this.localBasePath;
             const wasmSuffix = useCDN ? '' : '.gz';
 
             this.converter = new WorkerBrowserConverter({
                 sofficeJs: `${this.localBasePath}soffice.js`,                    // LOCAL - loaded as Worker
-                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}`,    // CDN: proxy decompresses; Local: .gz served
-                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}`,    // CDN: proxy decompresses; Local: .gz served
+                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
+                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
                 sofficeWorkerJs: `${this.localBasePath}soffice.worker.js`,      // LOCAL - loaded as Worker
                 browserWorkerJs: `${this.localBasePath}browser.worker.global.js`, // LOCAL - loaded as Worker
                 verbose: false,
