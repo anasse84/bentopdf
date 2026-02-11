@@ -12,9 +12,10 @@ compatibility_date = "2024-01-01"
 # Set environment secrets (one of the following methods):
 #   Option A: Cloudflare Dashboard
 #     Go to Workers & Pages > bentopdf-wasm-proxy > Settings > Variables
-#     Add: PYMUPDF_SOURCE, GS_SOURCE, CPDF_SOURCE
+#     Add: LIBREOFFICE_SOURCE, PYMUPDF_SOURCE, GS_SOURCE, CPDF_SOURCE
 #
 #   Option B: Wrangler CLI
+#     npx wrangler secret put LIBREOFFICE_SOURCE -c wasm-wrangler.toml
 #     npx wrangler secret put PYMUPDF_SOURCE -c wasm-wrangler.toml
 #     npx wrangler secret put GS_SOURCE -c wasm-wrangler.toml
 #     npx wrangler secret put CPDF_SOURCE -c wasm-wrangler.toml
