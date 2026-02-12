@@ -69,8 +69,9 @@ self.addEventListener('fetch', (event) => {
 
   const isCDN = url.hostname === 'cdn.jsdelivr.net';
   const isLocal = url.origin === location.origin;
+  const isProxy = url.hostname === 'bentopdf-wasm-proxy.atlantistech-io.workers.dev';
 
-  if (!isLocal && !isCDN) {
+  if (!isLocal && !isCDN && !isProxy) {
     return;
   }
   if (
@@ -95,7 +96,7 @@ self.addEventListener('fetch', (event) => {
   if (isLocal && url.pathname.includes('/locales/')) {
     event.respondWith(networkFirstStrategy(event.request));
   } else if (shouldCache(url.pathname, isCDN)) {
-    event.respondWith(cacheFirstStrategyWithDedup(event.request, isCDN));
+    event.respondWith(cacheFirstStrategyWithDedup(event.request, isCDN || isProxy));
   } else if (
     isLocal &&
     (url.pathname.endsWith('.html') ||
@@ -268,8 +269,8 @@ async function networkFirstStrategy(request) {
  * Returns the local directory path for a given CDN package
  */
 function getLocalPathForCDNUrl(pathname) {
-  if (pathname.includes('/@matbee/libreoffice-converter') || 
-      pathname.includes('/@bentopdf/libreoffice-wasm')) {
+  if (pathname.includes('/@matbee/libreoffice-converter') ||
+    pathname.includes('/@bentopdf/libreoffice-wasm')) {
     return '/libreoffice-wasm/';
   }
   return null;
@@ -279,8 +280,8 @@ function getLocalPathForCDNUrl(pathname) {
  * Determine if a URL should be cached
  * Handles both local and CDN URLs
  */
-function shouldCache(pathname, isCDN = false) {
-  if (isCDN) {
+function shouldCache(pathname, isCDN = false, isProxy = false) {
+  if (isCDN || isProxy) {
     return (
       pathname.includes('/@bentopdf/pymupdf-wasm') ||
       pathname.includes('/@bentopdf/gs-wasm') ||
