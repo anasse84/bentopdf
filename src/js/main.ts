@@ -16,6 +16,16 @@ import {
   t,
 } from './i18n/index.js';
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => {
+      console.log('Service Worker enregistré !', reg);
+    })
+    .catch(err => {
+      console.error('Erreur SW', err);
+    });
+}
+
 const init = async () => {
   await initI18n();
   injectLanguageSwitcher();
@@ -652,30 +662,30 @@ const init = async () => {
 
   // Reserved shortcuts that commonly conflict with browser/OS functions
   const RESERVED_SHORTCUTS: Record<string, { mac?: string; windows?: string }> =
-    {
-      'mod+w': { mac: 'Closes tab', windows: 'Closes tab' },
-      'mod+t': { mac: 'Opens new tab', windows: 'Opens new tab' },
-      'mod+n': { mac: 'Opens new window', windows: 'Opens new window' },
-      'mod+shift+n': {
-        mac: 'Opens incognito window',
-        windows: 'Opens incognito window',
-      },
-      'mod+q': { mac: 'Quits application (cannot be overridden)' },
-      'mod+m': { mac: 'Minimizes window' },
-      'mod+h': { mac: 'Hides window' },
-      'mod+r': { mac: 'Reloads page', windows: 'Reloads page' },
-      'mod+shift+r': { mac: 'Hard reloads page', windows: 'Hard reloads page' },
-      'mod+l': { mac: 'Focuses address bar', windows: 'Focuses address bar' },
-      'mod+d': { mac: 'Bookmarks page', windows: 'Bookmarks page' },
-      'mod+shift+t': {
-        mac: 'Reopens closed tab',
-        windows: 'Reopens closed tab',
-      },
-      'mod+shift+w': { mac: 'Closes window', windows: 'Closes window' },
-      'mod+tab': { mac: 'Switches tabs', windows: 'Switches apps' },
-      'alt+f4': { windows: 'Closes window' },
-      'ctrl+tab': { mac: 'Switches tabs', windows: 'Switches tabs' },
-    };
+  {
+    'mod+w': { mac: 'Closes tab', windows: 'Closes tab' },
+    'mod+t': { mac: 'Opens new tab', windows: 'Opens new tab' },
+    'mod+n': { mac: 'Opens new window', windows: 'Opens new window' },
+    'mod+shift+n': {
+      mac: 'Opens incognito window',
+      windows: 'Opens incognito window',
+    },
+    'mod+q': { mac: 'Quits application (cannot be overridden)' },
+    'mod+m': { mac: 'Minimizes window' },
+    'mod+h': { mac: 'Hides window' },
+    'mod+r': { mac: 'Reloads page', windows: 'Reloads page' },
+    'mod+shift+r': { mac: 'Hard reloads page', windows: 'Hard reloads page' },
+    'mod+l': { mac: 'Focuses address bar', windows: 'Focuses address bar' },
+    'mod+d': { mac: 'Bookmarks page', windows: 'Bookmarks page' },
+    'mod+shift+t': {
+      mac: 'Reopens closed tab',
+      windows: 'Reopens closed tab',
+    },
+    'mod+shift+w': { mac: 'Closes window', windows: 'Closes window' },
+    'mod+tab': { mac: 'Switches tabs', windows: 'Switches apps' },
+    'alt+f4': { windows: 'Closes window' },
+    'ctrl+tab': { mac: 'Switches tabs', windows: 'Switches tabs' },
+  };
 
   function getReservedShortcutWarning(
     combo: string,
@@ -912,8 +922,8 @@ const init = async () => {
               await showWarningModal(
                 t('settings.warnings.alreadyInUse'),
                 `<strong>${displayCombo}</strong> ${t('settings.warnings.assignedTo')}<br><br>` +
-                  `<em>"${translatedToolName}"</em><br><br>` +
-                  t('settings.warnings.chooseDifferent'),
+                `<em>"${translatedToolName}"</em><br><br>` +
+                t('settings.warnings.chooseDifferent'),
                 false
               );
 
@@ -932,9 +942,9 @@ const init = async () => {
               const shouldProceed = await showWarningModal(
                 t('settings.warnings.reserved'),
                 `<strong>${displayCombo}</strong> ${t('settings.warnings.commonlyUsed')}<br><br>` +
-                  `"<em>${reservedWarning}</em>"<br><br>` +
-                  `${t('settings.warnings.unreliable')}<br><br>` +
-                  t('settings.warnings.useAnyway')
+                `"<em>${reservedWarning}</em>"<br><br>` +
+                `${t('settings.warnings.unreliable')}<br><br>` +
+                t('settings.warnings.useAnyway')
               );
 
               if (!shouldProceed) {
