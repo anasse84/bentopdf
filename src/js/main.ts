@@ -26,6 +26,13 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// Précharger les JS pour assurer la dispo dans le cache SW
+['/libreoffice-wasm/soffice.js', '/libreoffice-wasm/soffice.worker.js'].forEach(url => {
+  fetch(url, { cache: 'reload' }).then(() => {
+    console.log('[Preload] Asset préchargé pour worker:', url);
+  });
+});
+
 const init = async () => {
   await initI18n();
   injectLanguageSwitcher();

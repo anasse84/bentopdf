@@ -124,7 +124,10 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
 
     // console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
 
+    console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
+    const t0 = performance.now();
     const networkResponse = await fetch(request);
+    console.log('[SW] fetch', request.url, 'ms:', (performance.now() - t0).toFixed(0));
 
     if (networkResponse && networkResponse.status === 200) {
       const clone = networkResponse.clone();
