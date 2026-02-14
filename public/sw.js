@@ -287,7 +287,7 @@ function shouldCache(pathname, isCDN = false, isProxy = false) {
       pathname.includes('/@bentopdf/gs-wasm') ||
       pathname.includes('/@matbee/libreoffice-converter') ||
       pathname.includes('/@bentopdf/libreoffice-wasm') ||
-      pathname.match(/\.(wasm|whl|zip|json|js|gz)$/)
+      pathname.match(/\.(wasm|data|whl|zip|json|js|gz)$/)
     );
   }
 
@@ -296,7 +296,7 @@ function shouldCache(pathname, isCDN = false, isProxy = false) {
     pathname.includes('/embedpdf/') ||
     pathname.includes('/assets/') ||
     pathname.match(
-      /\.(js|mjs|css|wasm|whl|zip|json|png|jpg|jpeg|gif|svg|woff|woff2|ttf|gz|br)$/
+      /\.(js|mjs|css|wasm|data|whl|zip|json|png|jpg|jpeg|gif|svg|woff|woff2|ttf|gz|br)$/
     )
   );
 }
