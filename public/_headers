@@ -1,6 +1,7 @@
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+  Access-Control-Allow-Origin: https://bentopdf-32l.pages.dev
 
 # Cache WASM files aggressively
 /*.wasm
