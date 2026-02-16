@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v10';
+const CACHE_VERSION = 'bentopdf-v11';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -118,11 +118,11 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
   try {
     const cachedResponse = await findCachedFile(fileName, request.url);
     if (cachedResponse) {
-      console.log('⚡ [Cache HIT] Instant load:', fileName);
+      // console.log('⚡ [Cache HIT] Instant load:', fileName);
       return cachedResponse;
     }
 
-    console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
+    // console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
 
     console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
     const t0 = performance.now();

@@ -2,8 +2,18 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
   Access-Control-Allow-Origin: https://bentopdf-32l.pages.dev
+  Cross-Origin-Resource-Policy: cross-origin
 
-# Cache WASM files aggressively
+/libreoffice-wasm/soffice.wasm.gz
+  Content-Type: application/wasm
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/libreoffice-wasm/soffice.data.gz
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/wasm
