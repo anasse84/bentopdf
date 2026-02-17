@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v12';
+const CACHE_VERSION = 'bentopdf-v13';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {

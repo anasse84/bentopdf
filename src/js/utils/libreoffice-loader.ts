@@ -68,11 +68,14 @@ export class LibreOfficeConverter {
                 sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}?v=0217`,    // Cache busting
                 sofficeWorkerJs: `${this.localBasePath}soffice.worker.js?v=0217`,      // LOCAL - loaded as Worker
                 browserWorkerJs: `${this.localBasePath}browser.worker.global.js?v=0217`, // LOCAL - loaded as Worker
-                verbose: true,
-                enableProgressTracking: true, // Try enabling tracking
+                verbose: false,
+                enableProgressTracking: false, // Disable tracking to reduce overhead
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
-                        const simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
+                        let simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
+                        if (info.percent >= 100) {
+                            simplifiedMessage = "Finalizing initialization...";
+                        }
                         progressCallback({
                             phase: info.phase as LoadProgress['phase'],
                             percent: info.percent,
