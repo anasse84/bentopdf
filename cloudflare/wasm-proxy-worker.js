@@ -266,11 +266,11 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
       'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
     };
 
-    // Forward Content-Length if available
-    const msgLen = response.headers.get('Content-Length');
-    if (msgLen) {
-      headers['Content-Length'] = msgLen;
-    }
+    // NOTE: Do NOT forward Content-Length here!
+    // The upstream Content-Length is for the compressed .gz payload,
+    // but the browser decompresses it due to Content-Encoding: gzip,
+    // so the actual body size differs. Sending the compressed Content-Length
+    // can cause WebAssembly.instantiateStreaming to fail silently.
 
     // Use encodeBody: 'manual' to prevent Cloudflare from stripping Content-Encoding
     return new Response(response.body, {
