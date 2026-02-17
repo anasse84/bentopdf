@@ -69,7 +69,7 @@ export class LibreOfficeConverter {
                 sofficeWorkerJs: `${this.localBasePath}soffice.worker.js?v=0217`,      // LOCAL - loaded as Worker
                 browserWorkerJs: `${this.localBasePath}browser.worker.global.js?v=0217`, // LOCAL - loaded as Worker
                 verbose: false,
-                enableProgressTracking: false, // Disable tracking to reduce overhead
+                enableProgressTracking: true, // Enable tracking to ensure download completes (fixes 69% hang)
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
                         let simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
