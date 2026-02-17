@@ -66,8 +66,8 @@ export class LibreOfficeConverter {
                 sofficeJs: `${this.localBasePath}soffice.js`,                    // LOCAL - loaded as Worker
                 sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}?v=0217`,    // Cache busting
                 sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}?v=0217`,    // Cache busting
-                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js?v=0217`,      // LOCAL - loaded as Worker
-                browserWorkerJs: `${this.localBasePath}browser.worker.global.js?v=0217`, // LOCAL - loaded as Worker
+                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js?v=0218-1`,      // LOCAL - loaded as Worker
+                browserWorkerJs: `${this.localBasePath}browser.worker.global.js?v=0218-1`, // LOCAL - loaded as Worker
                 verbose: false,
                 enableProgressTracking: true, // Enable tracking to ensure download completes (fixes 69% hang)
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
