@@ -86,6 +86,23 @@ async function preloadGhostscript(): Promise<void> {
   }
 }
 
+async function preloadLibreOffice(): Promise<void> {
+  if (preloadState.libreoffice !== PreloadStatus.IDLE) return;
+
+  preloadState.libreoffice = PreloadStatus.LOADING;
+  console.log('[Preloader] Starting LibreOffice background warm-up...');
+
+  try {
+    const converter = getLibreOfficeConverter();
+    converter.warmUp();
+    preloadState.libreoffice = PreloadStatus.READY;
+    console.log('[Preloader] LibreOffice warm-up started');
+  } catch (e) {
+    preloadState.libreoffice = PreloadStatus.ERROR;
+    console.warn('[Preloader] LibreOffice warm-up failed:', e);
+  }
+}
+
 function scheduleIdleTask(task: () => Promise<void>): void {
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => task(), { timeout: 5000 });
@@ -118,9 +135,12 @@ export function startBackgroundPreload(): void {
   );
 
   if (isLibreOfficePage) {
-    console.log(
-      '[Preloader] Skipping preloads on LibreOffice page to save memory'
-    );
+    // On LibreOffice conversion pages, eagerly pre-initialize the engine
+    // so it's ready by the time the user selects files and clicks Convert
+    console.log('[Preloader] LibreOffice page detected — starting eager pre-init');
+    scheduleIdleTask(async () => {
+      await preloadLibreOffice();
+    });
     return;
   }
 

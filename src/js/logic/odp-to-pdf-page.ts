@@ -11,6 +11,9 @@ const ACCEPTED_EXTENSIONS = ['.odp'];
 const FILETYPE_NAME = 'ODP';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Start LibreOffice WASM warm-up immediately in the background
+    getLibreOfficeConverter().warmUp();
+
     state.files = [];
 
     const fileInput = document.getElementById('file-input') as HTMLInputElement;

@@ -170,6 +170,23 @@ export class LibreOfficeConverter {
         return this.convertToPdf(file);
     }
 
+    /**
+     * Start initialization in the background without blocking.
+     * When initialize() is later called, it will join the in-progress init
+     * or return instantly if already done.
+     */
+    warmUp(): void {
+        if (this.initialized || this.initializing) return;
+        console.log('[LibreOffice] Starting background warm-up...');
+        this.initialize((progress) => {
+            console.log(`[LibreOffice] Warm-up: ${progress.percent}% - ${progress.message}`);
+        }).then(() => {
+            console.log('[LibreOffice] Background warm-up complete!');
+        }).catch((err) => {
+            console.warn('[LibreOffice] Background warm-up failed:', err);
+        });
+    }
+
     async destroy(): Promise<void> {
         if (this.converter) {
             await this.converter.destroy();

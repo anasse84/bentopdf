@@ -8,6 +8,9 @@ const ACCEPTED_EXTENSIONS = ['.pub'];
 const FILETYPE_NAME = 'PUB';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Start LibreOffice WASM warm-up immediately in the background
+    getLibreOfficeConverter().warmUp();
+
     state.files = [];
 
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
