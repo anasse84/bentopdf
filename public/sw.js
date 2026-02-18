@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v30';
+const CACHE_VERSION = 'bentopdf-v31';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -74,17 +74,6 @@ self.addEventListener('fetch', (event) => {
   if (!isLocal && !isCDN && !isProxy) {
     return;
   }
-
-  // CRITICAL: Do NOT intercept .wasm and .data files from proxy/CDN!
-  // When SW intercepts and returns a synthetic Response, V8 cannot cache
-  // the compiled WebAssembly module. This forces recompilation of the 96MB
-  // soffice.wasm on every page load (~5+ minutes).
-  // By letting these pass through, V8 caches the compiled WASM code,
-  // reducing init to ~5-10 seconds on subsequent visits.
-  // Network caching is still handled by the proxy's Cloudflare cache + browser HTTP cache.
-  if ((isProxy || isCDN) && (url.pathname.endsWith('.wasm') || url.pathname.endsWith('.data'))) {
-    return;
-  }
   if (
     isLocal &&
     (url.searchParams.has('t') ||
@@ -104,6 +93,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // CRITICAL: Bypass SW entirely for Emscripten PThread worker spawns.
+  // soffice.worker.js is re-fetched as a sub-worker by WASM threads (pthreads).
+  // If the SW intercepts these requests it causes Atomics.wait() deadlocks
+  // in the pthread coordination layer, making LOK init take 300+ seconds.
+  if (isLocal && url.pathname.endsWith('soffice.worker.js')) {
+    return; // Let browser fetch directly from network/disk cache
+  }
+
   if (isLocal && url.pathname.includes('/locales/')) {
     event.respondWith(networkFirstStrategy(event.request));
   } else if (shouldCache(url.pathname, isCDN)) {
@@ -112,7 +109,7 @@ self.addEventListener('fetch', (event) => {
     isLocal &&
     (url.pathname.endsWith('.html') ||
       url.pathname === '/' ||
-      /^\/(en|fr|es|de|zh|zh-TW|vi|tr|id|it|pt|nl|be)(\/|$)/.test(url.pathname))
+      /^\/(?:en|fr|es|de|zh|zh-TW|vi|tr|id|it|pt|nl|be)(\/|$)/.test(url.pathname))
   ) {
     event.respondWith(networkFirstStrategy(event.request));
   }
@@ -243,26 +240,15 @@ async function networkFirstStrategy(request) {
     const networkResponse = await fetch(request);
 
     if (networkResponse && networkResponse.status === 200) {
-      const clone = networkResponse.clone();
-      const buffer = await clone.arrayBuffer();
-      if (buffer.byteLength > 0) {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(
-          request,
-          new Response(buffer, {
-            status: networkResponse.status,
-            statusText: networkResponse.statusText,
-            headers: networkResponse.headers,
-          })
-        );
-      }
+      // Cache without buffering — same streaming pattern as cacheFirstStrategyWithDedup
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
     }
 
     return networkResponse;
   } catch (error) {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
-      // console.log('[Offline Mode] Serving from cache:', request.url.split('/').pop());
       return cachedResponse;
     }
     throw error;
