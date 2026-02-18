@@ -74,6 +74,17 @@ self.addEventListener('fetch', (event) => {
   if (!isLocal && !isCDN && !isProxy) {
     return;
   }
+
+  // CRITICAL: Do NOT intercept .wasm and .data files from proxy/CDN!
+  // When SW intercepts and returns a synthetic Response, V8 cannot cache
+  // the compiled WebAssembly module. This forces recompilation of the 96MB
+  // soffice.wasm on every page load (~5+ minutes).
+  // By letting these pass through, V8 caches the compiled WASM code,
+  // reducing init to ~5-10 seconds on subsequent visits.
+  // Network caching is still handled by the proxy's Cloudflare cache + browser HTTP cache.
+  if ((isProxy || isCDN) && (url.pathname.endsWith('.wasm') || url.pathname.endsWith('.data'))) {
+    return;
+  }
   if (
     isLocal &&
     (url.searchParams.has('t') ||
