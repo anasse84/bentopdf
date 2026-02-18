@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v23';
+const CACHE_VERSION = 'bentopdf-v10';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -71,15 +71,6 @@ self.addEventListener('fetch', (event) => {
   const isLocal = url.origin === location.origin;
   const isProxy = url.hostname === 'bentopdf-wasm-proxy.atlantistech-io.workers.dev';
 
-  // CRITICAL: Do NOT intercept .wasm files!
-  // V8 code-caches compiled WASM modules, but only when the Response comes
-  // directly from the network (not reconstructed by a Service Worker).
-  // Intercepting .wasm breaks this cache, forcing full recompilation (~2+ min)
-  // on every page load. Let the browser's HTTP cache handle .wasm files.
-  if (url.pathname.endsWith('.wasm') || url.pathname.includes('.wasm?')) {
-    return;
-  }
-
   if (!isLocal && !isCDN && !isProxy) {
     return;
   }
@@ -89,6 +80,7 @@ self.addEventListener('fetch', (event) => {
       url.searchParams.has('import') ||
       url.searchParams.has('direct'))
   ) {
+    // console.log('🔧 [Dev Mode] Skipping Vite HMR request:', url.pathname);
     return;
   }
 
@@ -126,22 +118,32 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
   try {
     const cachedResponse = await findCachedFile(fileName, request.url);
     if (cachedResponse) {
+      // console.log('⚡ [Cache HIT] Instant load:', fileName);
       return cachedResponse;
     }
 
+    // console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
+
+    console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
+    const t0 = performance.now();
     const networkResponse = await fetch(request);
+    console.log('[SW] fetch', request.url, 'ms:', (performance.now() - t0).toFixed(0));
 
     if (networkResponse && networkResponse.status === 200) {
-      // Cache in background — do NOT block the response return
-      const responseToCache = networkResponse.clone();
-      caches.open(CACHE_NAME).then(async (cache) => {
-        try {
-          await removeDuplicateCache(cache, fileName, isCDN);
-          await cache.put(request, responseToCache);
-        } catch (e) {
-          console.warn('[SW] Background cache failed:', fileName, e.message);
-        }
-      });
+      const clone = networkResponse.clone();
+      const buffer = await clone.arrayBuffer();
+      if (buffer.byteLength > 0) {
+        const cache = await caches.open(CACHE_NAME);
+        await removeDuplicateCache(cache, fileName, isCDN);
+        await cache.put(
+          request,
+          new Response(buffer, {
+            status: networkResponse.status,
+            statusText: networkResponse.statusText,
+            headers: networkResponse.headers,
+          })
+        );
+      }
     }
 
     return networkResponse;
@@ -186,25 +188,27 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
 async function findCachedFile(fileName, requestUrl) {
   const cache = await caches.open(CACHE_NAME);
 
-  // Check exact URL match first (fast path)
   const exactMatch = await cache.match(requestUrl);
-  if (exactMatch && exactMatch.ok) {
-    return exactMatch;
-  }
   if (exactMatch) {
+    const clone = exactMatch.clone();
+    const buffer = await clone.arrayBuffer();
+    if (buffer.byteLength > 0) {
+      return exactMatch;
+    }
     await cache.delete(requestUrl);
   }
 
-  // Check for same file under a different URL (dedup)
   const requests = await cache.keys();
   for (const req of requests) {
     const reqUrl = new URL(req.url);
     if (reqUrl.pathname.endsWith(fileName)) {
       const response = await cache.match(req);
-      if (response && response.ok) {
-        return response;
-      }
       if (response) {
+        const clone = response.clone();
+        const buffer = await clone.arrayBuffer();
+        if (buffer.byteLength > 0) {
+          return response;
+        }
         await cache.delete(req);
       }
     }

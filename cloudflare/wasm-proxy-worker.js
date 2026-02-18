@@ -69,8 +69,6 @@ function corsHeaders(origin) {
     'Access-Control-Expose-Headers':
       'Content-Length, Content-Range, Content-Type',
     'Access-Control-Max-Age': '86400',
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
   };
 }
 
@@ -229,6 +227,12 @@ async function proxyRequest(request, env, sourceBaseUrl, subpath, origin) {
   }
 }
 
+/**
+ * Special proxy for LibreOffice .gz files
+ * Fetches .gz files from CDN and serves them with Content-Encoding: gzip
+ * Uses encodeBody: 'manual' to prevent Cloudflare from stripping the header
+ * This allows the browser to decompress natively
+ */
 async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) {
   if (!sourceBaseUrl) {
     return new Response(
@@ -241,7 +245,35 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
   const normalizedPath = subpath.startsWith('/') ? subpath : `/${subpath}`;
   const targetUrl = `${normalizedBase}${normalizedPath}`;
 
+  // Determine Content-Type based on the original file (before .gz)
+  let contentType = 'application/octet-stream';
+  if (subpath.endsWith('.wasm.gz')) {
+    contentType = 'application/wasm';
+  }
+
   try {
+    // Check Cloudflare Cache first (same pattern as proxyRequest)
+    const cacheKey = new Request(targetUrl, request);
+    const cache = caches.default;
+    let cachedResponse = await cache.match(cacheKey);
+
+    if (cachedResponse) {
+      // Serve from cache — stream the body directly, add CORS headers
+      return new Response(cachedResponse.body, {
+        status: 200,
+        encodeBody: 'manual',
+        headers: {
+          ...corsHeaders(origin),
+          'Content-Type': contentType,
+          'Content-Encoding': 'gzip',
+          'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
+          'X-Proxied-From': new URL(targetUrl).hostname,
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
+    // Cache MISS — fetch from CDN
     const response = await fetch(targetUrl, {
       headers: { 'User-Agent': 'BentoPDF-WASM-Proxy/1.0', Accept: '*/*' },
     });
@@ -253,30 +285,50 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
       );
     }
 
-    // Determine Content-Type based on the original file (before .gz)
-    let contentType = 'application/octet-stream';
-    if (subpath.endsWith('.wasm.gz')) {
-      contentType = 'application/wasm';
+    // Cache the raw CDN response for future requests
+    const responseToCache = new Response(response.body, response);
+    responseToCache.headers.set('Cache-Control', `public, max-age=${CACHE_TTL_SECONDS}`);
+
+    if (response.status === 200) {
+      // Use waitUntil to cache in the background without blocking the response
+      // We need to tee the stream: one for cache, one for the client
+      const [stream1, stream2] = responseToCache.body.tee();
+
+      // Cache one copy in the background
+      const cacheResponse = new Response(stream1, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: responseToCache.headers,
+      });
+      cache.put(cacheKey, cacheResponse);
+
+      // Stream the other copy to the client immediately (no buffering!)
+      // Do NOT set Content-Length — it conflicts with Content-Encoding: gzip
+      // (Content-Length would be compressed size, but browser expects decompressed size)
+      return new Response(stream2, {
+        status: 200,
+        encodeBody: 'manual',
+        headers: {
+          ...corsHeaders(origin),
+          'Content-Type': contentType,
+          'Content-Encoding': 'gzip',
+          'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
+          'X-Proxied-From': new URL(targetUrl).hostname,
+          'X-Cache': 'MISS',
+        },
+      });
     }
 
-    const headers = {
-      ...corsHeaders(origin),
-      'Content-Type': contentType,
-      'Content-Encoding': 'gzip',
-      'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
-    };
-
-    // NOTE: Do NOT forward Content-Length here!
-    // The upstream Content-Length is for the compressed .gz payload,
-    // but the browser decompresses it due to Content-Encoding: gzip,
-    // so the actual body size differs. Sending the compressed Content-Length
-    // can cause WebAssembly.instantiateStreaming to fail silently.
-
-    // Use encodeBody: 'manual' to prevent Cloudflare from stripping Content-Encoding
-    return new Response(response.body, {
-      status: 200,
+    // Non-200 but ok status — stream directly
+    return new Response(responseToCache.body, {
+      status: response.status,
       encodeBody: 'manual',
-      headers: headers,
+      headers: {
+        ...corsHeaders(origin),
+        'Content-Type': contentType,
+        'Content-Encoding': 'gzip',
+        'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
+      },
     });
   } catch (error) {
     return new Response(

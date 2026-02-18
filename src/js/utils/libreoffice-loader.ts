@@ -64,18 +64,14 @@ export class LibreOfficeConverter {
 
             this.converter = new WorkerBrowserConverter({
                 sofficeJs: `${this.localBasePath}soffice.js`,                    // LOCAL - loaded as Worker
-                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}?v=0217`,    // Cache busting
-                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}?v=0217`,    // Cache busting
-                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js?v=0218-1`,      // LOCAL - loaded as Worker
-                browserWorkerJs: `${this.localBasePath}browser.worker.global.js?v=0218-3`, // LOCAL - loaded as Worker
+                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
+                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
+                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js`,      // LOCAL - loaded as Worker
+                browserWorkerJs: `${this.localBasePath}browser.worker.global.js`, // LOCAL - loaded as Worker
                 verbose: false,
-                enableProgressTracking: true, // Enable tracking to ensure download completes (fixes 69% hang)
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
-                        let simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
-                        if (info.percent >= 100) {
-                            simplifiedMessage = "Finalizing initialization...";
-                        }
+                        const simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
                         progressCallback({
                             phase: info.phase as LoadProgress['phase'],
                             percent: info.percent,
