@@ -11,9 +11,6 @@ const ACCEPTED_EXTENSIONS = ['.pages'];
 const FILETYPE_NAME = 'Pages';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Start LibreOffice WASM warm-up immediately in the background
-    getLibreOfficeConverter().warmUp();
-
     state.files = [];
 
     const fileInput = document.getElementById('file-input') as HTMLInputElement;

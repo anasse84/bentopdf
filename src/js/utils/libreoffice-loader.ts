@@ -72,18 +72,7 @@ export class LibreOfficeConverter {
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
-                        // Show phase-appropriate messages instead of generic "Loading..."
-                        let simplifiedMessage: string;
-                        const pct = Math.round(info.percent);
-
-                        if (info.phase === 'lok-init' || info.phase === 'filesystem' || info.phase === 'compile') {
-                            simplifiedMessage = 'Initializing LibreOffice engine...';
-                        } else if (info.phase === 'ready') {
-                            simplifiedMessage = 'Conversion engine ready!';
-                        } else {
-                            simplifiedMessage = `Loading conversion engine (${pct}%)...`;
-                        }
-
+                        const simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
                         progressCallback({
                             phase: info.phase as LoadProgress['phase'],
                             percent: info.percent,
@@ -168,23 +157,6 @@ export class LibreOfficeConverter {
 
     async excelToPdf(file: File): Promise<Blob> {
         return this.convertToPdf(file);
-    }
-
-    /**
-     * Start initialization in the background without blocking.
-     * When initialize() is later called, it will join the in-progress init
-     * or return instantly if already done.
-     */
-    warmUp(): void {
-        if (this.initialized || this.initializing) return;
-        console.log('[LibreOffice] Starting background warm-up...');
-        this.initialize((progress) => {
-            console.log(`[LibreOffice] Warm-up: ${progress.percent}% - ${progress.message}`);
-        }).then(() => {
-            console.log('[LibreOffice] Background warm-up complete!');
-        }).catch((err) => {
-            console.warn('[LibreOffice] Background warm-up failed:', err);
-        });
     }
 
     async destroy(): Promise<void> {

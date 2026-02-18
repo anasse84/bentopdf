@@ -8,9 +8,6 @@ const ACCEPTED_EXTENSIONS = ['.vsd', '.vsdx'];
 const FILETYPE_NAME = 'VSD';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Start LibreOffice WASM warm-up immediately in the background
-    getLibreOfficeConverter().warmUp();
-
     state.files = [];
 
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
