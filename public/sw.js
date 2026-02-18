@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v11';
+const CACHE_VERSION = 'bentopdf-v12';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -96,7 +96,7 @@ self.addEventListener('fetch', (event) => {
   if (isLocal && url.pathname.includes('/locales/')) {
     event.respondWith(networkFirstStrategy(event.request));
   } else if (shouldCache(url.pathname, isCDN)) {
-    event.respondWith(cacheFirstStrategyWithDedup(event.request, isCDN || isProxy));
+    event.respondWith(cacheFirstStrategyWithDedup(event, event.request, isCDN || isProxy));
   } else if (
     isLocal &&
     (url.pathname.endsWith('.html') ||
@@ -111,7 +111,7 @@ self.addEventListener('fetch', (event) => {
  * Cache-first strategy with deduplication
  * Ensures we only cache CDN OR local version, never both
  */
-async function cacheFirstStrategyWithDedup(request, isCDN) {
+async function cacheFirstStrategyWithDedup(event, request, isCDN) {
   const url = new URL(request.url);
   const fileName = url.pathname.split('/').pop();
 
@@ -124,16 +124,19 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
 
     // console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
 
-    // console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
     const networkResponse = await fetch(request);
 
     if (networkResponse && networkResponse.status === 200) {
-      // Cache the clone in the background — do NOT buffer into ArrayBuffer first!
-      // cache.put() streams the body internally, so the response is available immediately.
+      // Cache in the background via event.waitUntil — this keeps the SW alive
+      // until caching completes, WITHOUT blocking the response to the caller.
       const clone = networkResponse.clone();
-      const cache = await caches.open(CACHE_NAME);
-      removeDuplicateCache(cache, fileName, isCDN);
-      cache.put(request, clone);
+      event.waitUntil(
+        (async () => {
+          const cache = await caches.open(CACHE_NAME);
+          await removeDuplicateCache(cache, fileName, isCDN);
+          await cache.put(request, clone);
+        })()
+      );
     }
 
     return networkResponse;

@@ -72,7 +72,18 @@ export class LibreOfficeConverter {
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
-                        const simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
+                        // Show phase-appropriate messages instead of generic "Loading..."
+                        let simplifiedMessage: string;
+                        const pct = Math.round(info.percent);
+
+                        if (info.phase === 'lok-init' || info.phase === 'filesystem' || info.phase === 'compile') {
+                            simplifiedMessage = 'Initializing LibreOffice engine...';
+                        } else if (info.phase === 'ready') {
+                            simplifiedMessage = 'Conversion engine ready!';
+                        } else {
+                            simplifiedMessage = `Loading conversion engine (${pct}%)...`;
+                        }
+
                         progressCallback({
                             phase: info.phase as LoadProgress['phase'],
                             percent: info.percent,
