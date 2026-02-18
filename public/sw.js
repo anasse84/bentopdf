@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v10';
+const CACHE_VERSION = 'bentopdf-v11';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -124,26 +124,16 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
 
     // console.log(`📥 [Cache MISS] Downloading from ${isCDN ? 'CDN' : 'local'}:`, fileName);
 
-    console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
-    const t0 = performance.now();
+    // console.log('[SW]', request.url, 'in cacheFirstStrategyWithDedup');
     const networkResponse = await fetch(request);
-    console.log('[SW] fetch', request.url, 'ms:', (performance.now() - t0).toFixed(0));
 
     if (networkResponse && networkResponse.status === 200) {
+      // Cache the clone in the background — do NOT buffer into ArrayBuffer first!
+      // cache.put() streams the body internally, so the response is available immediately.
       const clone = networkResponse.clone();
-      const buffer = await clone.arrayBuffer();
-      if (buffer.byteLength > 0) {
-        const cache = await caches.open(CACHE_NAME);
-        await removeDuplicateCache(cache, fileName, isCDN);
-        await cache.put(
-          request,
-          new Response(buffer, {
-            status: networkResponse.status,
-            statusText: networkResponse.statusText,
-            headers: networkResponse.headers,
-          })
-        );
-      }
+      const cache = await caches.open(CACHE_NAME);
+      removeDuplicateCache(cache, fileName, isCDN);
+      cache.put(request, clone);
     }
 
     return networkResponse;
@@ -188,25 +178,26 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
 async function findCachedFile(fileName, requestUrl) {
   const cache = await caches.open(CACHE_NAME);
 
+  // Check exact URL match first
   const exactMatch = await cache.match(requestUrl);
   if (exactMatch) {
-    const clone = exactMatch.clone();
-    const buffer = await clone.arrayBuffer();
-    if (buffer.byteLength > 0) {
+    // Check Content-Length header instead of buffering entire body into memory
+    const cl = exactMatch.headers.get('Content-Length');
+    if (!cl || parseInt(cl, 10) > 0) {
       return exactMatch;
     }
     await cache.delete(requestUrl);
   }
 
+  // Check for same file cached under a different URL (CDN vs local dedup)
   const requests = await cache.keys();
   for (const req of requests) {
     const reqUrl = new URL(req.url);
     if (reqUrl.pathname.endsWith(fileName)) {
       const response = await cache.match(req);
       if (response) {
-        const clone = response.clone();
-        const buffer = await clone.arrayBuffer();
-        if (buffer.byteLength > 0) {
+        const cl = response.headers.get('Content-Length');
+        if (!cl || parseInt(cl, 10) > 0) {
           return response;
         }
         await cache.delete(req);
