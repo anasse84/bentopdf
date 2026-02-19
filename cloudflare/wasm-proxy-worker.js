@@ -275,11 +275,7 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
 
     // Cache MISS — fetch from CDN
     const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'BentoPDF-WASM-Proxy/1.0',
-        Accept: '*/*',
-        'Accept-Encoding': 'identity',  // Prevent CDN from double-compressing the .gz file
-      },
+      headers: { 'User-Agent': 'BentoPDF-WASM-Proxy/1.0', Accept: '*/*' },
     });
 
     if (!response.ok) {
