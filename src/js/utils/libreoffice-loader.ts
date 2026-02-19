@@ -52,8 +52,12 @@ export class LibreOfficeConverter {
 
         this.initializing = true;
         let progressCallback = onProgress; // Store original callback
+        let lastPhase = '';
+        let lastPhaseTime = 0;
 
         try {
+            console.time('[LibreOffice] Total init');
+            console.log('[LibreOffice] CDN base:', this.cdnBasePath, '| Local base:', this.localBasePath);
             progressCallback?.({ phase: 'loading', percent: 0, message: 'Loading conversion engine...' });
 
             // When using CDN/proxy (cdnBasePath != localBasePath), omit .gz extension
@@ -71,6 +75,17 @@ export class LibreOfficeConverter {
                 enableProgressTracking: true,   // Show granular download progress instead of jumping to 69%
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
+                    // Timing diagnostics: log duration of each phase transition
+                    const now = performance.now();
+                    if (info.phase !== lastPhase) {
+                        if (lastPhase) {
+                            console.log(`[LibreOffice] Phase "${lastPhase}" took ${((now - lastPhaseTime) / 1000).toFixed(1)}s`);
+                        }
+                        console.log(`[LibreOffice] Phase "${info.phase}" started at ${Math.round(info.percent)}%`);
+                        lastPhase = info.phase;
+                        lastPhaseTime = now;
+                    }
+
                     if (progressCallback && !this.initialized) {
                         // During LOK init (60-85%), the UI appears stuck.
                         // Show a helpful message instead of a generic percentage.
@@ -97,6 +112,7 @@ export class LibreOfficeConverter {
 
             await this.converter.initialize();
             this.initialized = true;
+            console.timeEnd('[LibreOffice] Total init');
 
             // Call completion message
             progressCallback?.({ phase: 'ready', percent: 100, message: 'Conversion engine ready!' });

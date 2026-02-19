@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v34';
+const CACHE_VERSION = 'bentopdf-v35';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -95,27 +95,29 @@ self.addEventListener('fetch', (event) => {
 
   // CRITICAL: Bypass SW entirely for Emscripten PThread worker spawns.
   // soffice.worker.js is re-fetched as a sub-worker by WASM threads (pthreads).
+  // soffice.js is loaded by each pthread worker via importScripts/fetch.
   // If the SW intercepts these requests it causes Atomics.wait() deadlocks
   // in the pthread coordination layer, making LOK init take 300+ seconds.
-  if (isLocal && url.pathname.endsWith('soffice.worker.js')) {
+  if (isLocal && (url.pathname.endsWith('soffice.worker.js') || url.pathname.endsWith('soffice.js'))) {
     return; // Let browser fetch directly from network/disk cache
   }
 
-  // OPTIMIZATION: For proxy WASM binary downloads (.wasm, .data), use a lightweight
-  // cache-only check. On cache MISS, let the browser fetch directly from the proxy
-  // (which has its own Cloudflare edge cache) without SW overhead.
-  // This avoids: (1) expensive findCachedFile full-scan of all cache keys,
-  // (2) response cloning competing with WebAssembly.compileStreaming,
-  // (3) double-buffering of 30-60MB decompressed response bodies.
-  if (isProxy && isWasmBinaryFile(url.pathname)) {
-    event.respondWith(proxyWasmCacheOnly(event.request, url));
-    return;
+  // CRITICAL: Bypass SW entirely for ALL proxy WASM requests.
+  // The proxy worker has its own Cloudflare edge cache (7-day TTL),
+  // and the browser has HTTP cache, so SW caching is redundant.
+  // SW interception causes severe performance issues:
+  // - Response stream tee() from clone()+cache.put() competes with
+  //   WebAssembly.compileStreaming for the same network stream
+  // - findCachedFile full-scan adds latency before downloads start
+  // - Double-buffering 100MB+ decompressed bodies causes memory pressure
+  if (isProxy) {
+    return; // Let browser fetch directly from proxy
   }
 
   if (isLocal && url.pathname.includes('/locales/')) {
     event.respondWith(networkFirstStrategy(event.request));
   } else if (shouldCache(url.pathname, isCDN)) {
-    event.respondWith(cacheFirstStrategyWithDedup(event.request, isCDN || isProxy));
+    event.respondWith(cacheFirstStrategyWithDedup(event.request, isCDN));
   } else if (
     isLocal &&
     (url.pathname.endsWith('.html') ||
