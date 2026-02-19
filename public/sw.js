@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v33';
+const CACHE_VERSION = 'bentopdf-v34';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -99,6 +99,17 @@ self.addEventListener('fetch', (event) => {
   // in the pthread coordination layer, making LOK init take 300+ seconds.
   if (isLocal && url.pathname.endsWith('soffice.worker.js')) {
     return; // Let browser fetch directly from network/disk cache
+  }
+
+  // OPTIMIZATION: For proxy WASM binary downloads (.wasm, .data), use a lightweight
+  // cache-only check. On cache MISS, let the browser fetch directly from the proxy
+  // (which has its own Cloudflare edge cache) without SW overhead.
+  // This avoids: (1) expensive findCachedFile full-scan of all cache keys,
+  // (2) response cloning competing with WebAssembly.compileStreaming,
+  // (3) double-buffering of 30-60MB decompressed response bodies.
+  if (isProxy && isWasmBinaryFile(url.pathname)) {
+    event.respondWith(proxyWasmCacheOnly(event.request, url));
+    return;
   }
 
   if (isLocal && url.pathname.includes('/locales/')) {
@@ -293,6 +304,63 @@ function getLocalPathForCDNUrl(pathname) {
     return '/libreoffice-wasm/';
   }
   return null;
+}
+
+/**
+ * Check if a URL path is a WASM binary file (large files that need special handling)
+ */
+function isWasmBinaryFile(pathname) {
+  return (
+    pathname.endsWith('.wasm') ||
+    pathname.endsWith('.data') ||
+    pathname.endsWith('.wasm.gz') ||
+    pathname.endsWith('.data.gz')
+  );
+}
+
+/**
+ * Lightweight cache-only strategy for proxy WASM binary downloads.
+ * On HIT: serve immediately from cache (with Content-Type fix for .wasm).
+ * On MISS: fetch directly from proxy, stream to caller, cache in background.
+ *
+ * This avoids the heavy findCachedFile full-scan and response cloning
+ * that the standard cacheFirstStrategyWithDedup does, which competes
+ * with WebAssembly.compileStreaming for the response body.
+ */
+async function proxyWasmCacheOnly(request, url) {
+  const cache = await caches.open(CACHE_NAME);
+  const fileName = url.pathname.split('/').pop();
+
+  // Fast exact-URL cache lookup only — no full-scan!
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) {
+    // console.log(`✅ [Proxy Cache HIT] ${fileName}`);
+    // Fix Content-Type for .wasm files to enable WebAssembly.compileStreaming
+    if (fileName && fileName.endsWith('.wasm')) {
+      const ct = cachedResponse.headers.get('Content-Type');
+      if (!ct || !ct.includes('application/wasm')) {
+        const headers = new Headers(cachedResponse.headers);
+        headers.set('Content-Type', 'application/wasm');
+        return new Response(cachedResponse.body, {
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+          headers: headers,
+        });
+      }
+    }
+    return cachedResponse;
+  }
+
+  // console.log(`📥 [Proxy Cache MISS] Fetching from proxy: ${fileName}`);
+  const networkResponse = await fetch(request);
+
+  if (networkResponse && networkResponse.status === 200) {
+    // Cache a clone in the background — don't block the response
+    const clone = networkResponse.clone();
+    cache.put(request, clone);
+  }
+
+  return networkResponse;
 }
 
 /**

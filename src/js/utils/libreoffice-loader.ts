@@ -72,7 +72,14 @@ export class LibreOfficeConverter {
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
                     if (progressCallback && !this.initialized) {
-                        const simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
+                        // During LOK init (60-85%), the UI appears stuck.
+                        // Show a helpful message instead of a generic percentage.
+                        let simplifiedMessage: string;
+                        if (info.percent >= 60 && info.percent < 85) {
+                            simplifiedMessage = 'Initializing LibreOffice – first load may take 1-2 min...';
+                        } else {
+                            simplifiedMessage = `Loading conversion engine (${Math.round(info.percent)}%)...`;
+                        }
                         progressCallback({
                             phase: info.phase as LoadProgress['phase'],
                             percent: info.percent,
