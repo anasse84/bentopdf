@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v33-debug';
+const CACHE_VERSION = 'bentopdf-v33';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -126,7 +126,21 @@ async function cacheFirstStrategyWithDedup(request, isCDN) {
   try {
     const cachedResponse = await findCachedFile(fileName, request.url);
     if (cachedResponse) {
-      // console.log('⚡ [Cache HIT] Instant load:', fileName);
+      // Fix Content-Type for WASM files to enable WebAssembly.compileStreaming
+      // Without correct Content-Type, browser falls back to slow WebAssembly.compile
+      if (fileName && fileName.endsWith('.wasm')) {
+        const ct = cachedResponse.headers.get('Content-Type');
+        if (!ct || !ct.includes('application/wasm')) {
+          const body = cachedResponse.body;
+          const headers = new Headers(cachedResponse.headers);
+          headers.set('Content-Type', 'application/wasm');
+          return new Response(body, {
+            status: cachedResponse.status,
+            statusText: cachedResponse.statusText,
+            headers: headers,
+          });
+        }
+      }
       return cachedResponse;
     }
 
@@ -195,6 +209,20 @@ async function findCachedFile(fileName, requestUrl) {
       return exactMatch;
     }
     await cache.delete(requestUrl);
+  }
+
+  // ONLY do the expensive full-cache-key scan for large WASM binary files.
+  // For all other assets (JS, CSS, images, etc.), skip this scan entirely.
+  // This scan iterates every cached URL which can take minutes with hundreds of entries.
+  const isWasmBinary = fileName && (
+    fileName.endsWith('.wasm') ||
+    fileName.endsWith('.data') ||
+    fileName.endsWith('.wasm.gz') ||
+    fileName.endsWith('.data.gz')
+  );
+
+  if (!isWasmBinary) {
+    return null;
   }
 
   // Check for same file cached under a different URL (CDN vs local dedup)
