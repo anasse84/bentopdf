@@ -95,12 +95,13 @@ self.addEventListener('fetch', (event) => {
 
   // CRITICAL: Bypass SW entirely for Emscripten PThread worker spawns.
   // soffice.worker.js is re-fetched as a sub-worker by WASM threads (pthreads).
-  // If the SW intercepts these requests it causes Atomics.wait() deadlocks
-  // in the pthread coordination layer, making LOK init take 300+ seconds.
-  if (isLocal && url.pathname.endsWith('soffice.worker.js')) {
-    return; // Let browser fetch directly from network/disk cache
+  // Bypass for soffice worker files - let browser handle them natively
+  // This is CRITICAL to avoid race conditions during WASM init
+  if (url.pathname.includes('soffice.worker.js') || url.pathname.includes('soffice.js')) {
+    return;
   }
 
+  // Handle navigation requests (SPA support)
   if (isLocal && url.pathname.includes('/locales/')) {
     event.respondWith(networkFirstStrategy(event.request));
   } else if (shouldCache(url.pathname, isCDN)) {
@@ -301,11 +302,18 @@ function getLocalPathForCDNUrl(pathname) {
  */
 function shouldCache(pathname, isCDN = false, isProxy = false) {
   if (isCDN || isProxy) {
+    // Force bypass for soffice worker files to prevent race conditions
+    if (pathname.includes('soffice.worker.js') || pathname.includes('soffice.js')) {
+      return false;
+    }
+
+    // Bypass for LibreOffice worker files to avoid pthread deadlock
+    if (pathname.includes('/@matbee/libreoffice-converter') || pathname.includes('/@bentopdf/libreoffice-wasm')) {
+      return false;
+    }
+
     return (
       pathname.includes('/@bentopdf/pymupdf-wasm') ||
-      pathname.includes('/@bentopdf/gs-wasm') ||
-      pathname.includes('/@matbee/libreoffice-converter') ||
-      pathname.includes('/@bentopdf/libreoffice-wasm') ||
       pathname.match(/\.(wasm|data|whl|zip|json|js|gz)$/)
     );
   }
