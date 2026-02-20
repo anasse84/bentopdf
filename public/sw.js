@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v34';
+const CACHE_VERSION = 'bentopdf-v35';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -97,7 +97,7 @@ self.addEventListener('fetch', (event) => {
   // soffice.worker.js is re-fetched as a sub-worker by WASM threads (pthreads).
   // Bypass for soffice worker files - let browser handle them natively
   // This is CRITICAL to avoid race conditions during WASM init
-  if (url.pathname.includes('soffice.worker.js') || url.pathname.includes('soffice.js')) {
+  if (url.pathname.includes('soffice.worker.js') || url.pathname.includes('soffice.js') || url.pathname.includes('browser.worker.global.js')) {
     return;
   }
 
