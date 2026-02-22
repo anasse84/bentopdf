@@ -139,7 +139,9 @@ async function proxyRequest(request, env, sourceBaseUrl, subpath, origin) {
   }
 
   try {
-    const cacheKey = new Request(targetUrl, request);
+    const cacheUrl = new URL(targetUrl);
+    cacheUrl.searchParams.set('v', '2');
+    const cacheKey = new Request(cacheUrl.toString(), request);
     const cache = caches.default;
     let response = await cache.match(cacheKey);
 
@@ -235,7 +237,7 @@ async function proxyRequest(request, env, sourceBaseUrl, subpath, origin) {
  * Uses encodeBody: 'manual' to prevent Cloudflare from stripping the header
  * This allows the browser to decompress natively
  */
-async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) {
+async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin, ctx) {
   if (!sourceBaseUrl) {
     return new Response(
       JSON.stringify({ error: 'Source not configured' }),
@@ -255,7 +257,9 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
 
   try {
     // Check Cloudflare Cache first (same pattern as proxyRequest)
-    const cacheKey = new Request(targetUrl, request);
+    const cacheUrl = new URL(targetUrl);
+    cacheUrl.searchParams.set('v', '2');
+    const cacheKey = new Request(cacheUrl.toString(), request);
     const cache = caches.default;
     let cachedResponse = await cache.match(cacheKey);
 
@@ -302,7 +306,7 @@ async function proxyLibreOfficeGz(request, env, sourceBaseUrl, subpath, origin) 
         statusText: responseToCache.statusText,
         headers: responseToCache.headers,
       });
-      cache.put(cacheKey, cacheResponse);
+      ctx.waitUntil(cache.put(cacheKey, cacheResponse));
 
       // Stream the other copy to the client immediately (no buffering!)
       // Do NOT set Content-Length — it conflicts with Content-Encoding: gzip
@@ -421,12 +425,12 @@ export default {
       // .wasm and .data files (not already .gz): fetch .gz from CDN, serve with Content-Encoding: gzip
       // Emscripten requests soffice.wasm but CDN only has soffice.wasm.gz
       if ((subpath.endsWith('.wasm') || subpath.endsWith('.data')) && !subpath.endsWith('.gz')) {
-        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath + '.gz', origin);
+        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath + '.gz', origin, ctx);
       }
 
       // .gz files also handled (direct requests)
       if (subpath.endsWith('.gz')) {
-        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath, origin);
+        return proxyLibreOfficeGz(request, env, env.LIBREOFFICE_SOURCE, subpath, origin, ctx);
       }
 
       // .js files: normal proxy

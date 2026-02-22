@@ -62,12 +62,15 @@ export class LibreOfficeConverter {
             const useCDN = this.cdnBasePath !== this.localBasePath;
             const wasmSuffix = useCDN ? '' : '.gz';
 
+            // Add cache buster to bypass corrupted truncated files from previous cache bug
+            const cacheBuster = '?v=1.0.1';
+
             this.converter = new WorkerBrowserConverter({
-                sofficeJs: `${this.localBasePath}soffice.js`,                    // LOCAL - loaded as Worker
-                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
-                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
-                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js`,      // LOCAL - loaded as Worker
-                browserWorkerJs: `${this.localBasePath}browser.worker.global.js`, // LOCAL - loaded as Worker
+                sofficeJs: `${this.localBasePath}soffice.js${cacheBuster}`,                    // LOCAL - loaded as Worker
+                sofficeWasm: `${this.cdnBasePath}soffice.wasm${wasmSuffix}${cacheBuster}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
+                sofficeData: `${this.cdnBasePath}soffice.data${wasmSuffix}${cacheBuster}`,    // CDN: proxy adds .gz and serves with gzip encoding; Local: .gz served
+                sofficeWorkerJs: `${this.localBasePath}soffice.worker.js${cacheBuster}`,      // LOCAL - loaded as Worker
+                browserWorkerJs: `${this.localBasePath}browser.worker.global.js${cacheBuster}`, // LOCAL - loaded as Worker
                 enableProgressTracking: true,   // Show granular download progress instead of jumping to 69%
                 verbose: false,
                 onProgress: (info: { phase: string; percent: number; message: string }) => {
